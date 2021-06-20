@@ -151,7 +151,88 @@
 
 ## 8 Java Buffer与Channel的注意事项与细节
 
-- ByteBuffer 
+- ByteBuffer **支持类型化的put和get，put放入什么类型的数据，get就应当使用相应的数据类型去取**，否则可能出现BufferUnderflowException异常(详见 demo_day1 NIOByteBufferPutGet)
+- 可将一个**普通的Buffer转成只读Buffer**(详见 demo_day1 OnlyReadBuffer)
+- NIO提供了**MapperByteBuffer**，可让**文件直接在内存中进行修改**，而如何**同步到文件由NIO来完成**(详见 demo_day1 MappedByteBufferTest)
+- **NIO还支持多个Buffer(即Buffer数组)完成读写操作**，即Scattering和Gathering(详见 demo_day1 ScatteringAndGathering)
+
+## 9 Java Select
+
+###  Java Select 介绍及原理
+
+- 基本介绍
+  1. Java的NIO用非阻塞的IO方式。可用一个线程，处理多个客户端连接，就会使用到**Selector(选择器)**
+  2. **Selector能够检测多个注册的通道上是否有事件发生(注：多个Channel以事件的方式可以注册到同一个Selector)**，如有事件发生，便获取事件然后针对每个事件进行相应的处理。这样就可用一个单线程去管理多个通道，也就是管理多个连接和请求
+  3. 只有在**连接/通道 真正有读写事件发生**时，**才会进行读写就大大地减少了系统开销，且不必为每个连接都创建一个线程，减少服务端的压力(不用再维护多个线程)**
+  4. **避免了多线程之间的上下文切换导致的开销**
+- 特点说明
+  1. Netty的IO线程NioEventLoop聚合了Selector(选择器，也叫多路复用器)，可同时并发处理成百上千个客户端连接
+  2. 当线程从某客户端Socket通道进行读写时，若没有数据可用时，该线程可以进行其他任务
+  3. 线程通常将非阻塞IO的空闲时间用于在其他管道上执行IO操作，所以单独的线程可管理多个输入和输出管道
+  4. 由于读写操作都是非阻塞的这就可以充分提升IO线程的运行效率，避免了由于频繁I/O阻塞导致的线程挂起
+  5. 一个I/O线程可以并发处理N个客户端连接和读写操作,这从根本上解决了传统同步阻塞I/O一连接一线程模型，架构的性能，弹性伸缩能力和可靠性都得到了极大的提升
+
+### Java Selector 相关方法
+
+- 常用方法
+
+  ```
+  public abstract class Selector implements Closeable {
+  	 public static Selector open();// 得到选择器对象
+  	 public abstract int select(long timeout);//监听所有注册的通道，当其有IO操作可进行时，将对应的SelectionKey加入到内部集合中并返回，参数用来设置超时时间
+  	 public abstract Set<SelectionKey> selectedKeys();//从内部集合中得到所有的SelectionKey
+  }
+  ```
+
+- 注意事项
+
+  1. NIO中的ServerSocketChannel功能类似于ServerSocket,SocketChannel功能类似于Socket
+  2. Selector相关方法
+     - selector.select(); // 阻塞
+     - selector.select(long l); // 设置阻塞超时。在l毫秒后返回
+     - selector.wakeup(); // 唤醒selector
+     - selector.selectNow(); //不阻塞，立刻返还
+
+### Java Selector 非阻塞 网络编程原理分析图
+
+- 分析图的说明 具体流程图详见(图解 N-12) 
+  1. 当客户端连接时，会通过ServerSocketChannel 得到 SocketChannel
+  2. Selector进行监听select方法，返回有事件发生的通道的个数(SelectionKey在注册返回时会带上状态便于select方法来识别)
+  3. 将socketChannel注册到Selector上,SelectableChannel下的方法public final SelectionKey register(Selector sel,int opt)，selector上可注册多个SocketChannel
+  4. 注册后返回一个SelectKey,会与该Selector关联(集合)
+  5. 进一步得到各个SelectionKey(有事件方法的SelectionKey)
+  6. 通过SelectionKey反向获取SocketChannel
+  7. 通过得到的channel(SocketChannel)完成处理
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## N 图解
 
@@ -165,7 +246,7 @@
 
 ### N-3 NIO 模型
 
-![image-20210617124021630](Netty.assets/image-20210617124021630.png)
+![image-20210619165225797](Netty.assets/image-20210619165225797.png)
 
 ### N-4 Buffer 模型
 
@@ -198,3 +279,7 @@
 ### N-11 FileChannel 单Buffer完成读写操作
 
 ![image-20210618092639372](Netty.assets/image-20210618092639372.png)
+
+### N-12 NIO 非阻塞 网络编程原理分析图(Selector，SelectionKey,ServerScoketChannel和SocketChannel关系梳理图)
+
+![image-20210620152100769](Netty.assets/image-20210620152100769.png)
