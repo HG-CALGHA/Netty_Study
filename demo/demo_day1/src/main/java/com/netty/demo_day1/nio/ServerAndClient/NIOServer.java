@@ -16,7 +16,7 @@ public class NIOServer {
         //创建 ServerSocketChannel -> ServerSocket
         try {
             ServerSocketChannel ServerSocketOpen = ServerSocketChannel.open();
-            // 得到Selector对象
+            // 得到Selector对象  实际为WindowsSelectorImpl
             Selector SelectorOpen = Selector.open();
             // 绑定监听端口
             ServerSocketOpen.socket().bind(new InetSocketAddress(6666));
@@ -24,6 +24,9 @@ public class NIOServer {
             ServerSocketOpen.configureBlocking(false);
             // 将serverSocket注册到 selector 关心事件为SelectionKey.OP_ACCEPT
             ServerSocketOpen.register(SelectorOpen, SelectionKey.OP_ACCEPT);
+
+            System.out.println("注册前的SelectionKey： " + SelectorOpen.keys().size());
+
             while (true){
                 // 等待连接 如无连接则跳过该次监听 超时时间为1s
                 if (SelectorOpen.select(1000) == 0){
@@ -49,6 +52,7 @@ public class NIOServer {
                         // 将当前的SocketChannelAccept注册到selector 关注为OP_READ 同时绑定Channel
                         SocketChannelAccept.register(SelectorOpen,SelectionKey.OP_READ, ByteBuffer.allocate(1024));
 
+                        System.out.println("注册后的SelectionKey： " + SelectorOpen.keys().size());
                     }
                     if (key.isReadable()){ // 如为OP_READ 则代表有人进行读取操作
                         // 通过key 反向获取对应的channel 需要进行强转 key.channel()返回的是SelectableChannel类型

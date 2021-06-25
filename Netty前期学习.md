@@ -77,7 +77,7 @@
 ### java NIO 三大核心原理关系说明(关系图请看图解 N-3)
 
 1. 每个channl都对应一个buffer
-2. selector对应一个Thread(线程)但可对应多个channl(连接),Thread可以对应多个selector
+2. selector对应一个Thread(线程)但Thread可对应多个channl(连接),
 3. channel会注册到该selector中
 4. 程序切换至那个channel是由事件决定的，Event是一个很重要的概念
 5. selector会根据不同的事件在各个通道上切换
@@ -204,35 +204,129 @@
   6. 通过SelectionKey反向获取SocketChannel
   7. 通过得到的channel(SocketChannel)完成处理
 
+## 10 Java SelectionKey
+
+### Java SelectionKey 介绍
+
+- SelectKey 表示Selector和网络通道的注册关系
+
+  - OP_ACCEP：有新的网络连接可accept 值为16
+  - OP_CONNECT：代表连接已建立 值为8
+  - OP_WRITE：代表写操作 值为4
+  - OP_READ：代表读操作 值为1
+
+- 相关方法 详见 (图解 N-13)
+
+- 常用方法
+
+  ```Java
+  public abstract class SelectionKey {
+  	public abstract Selector selector(); // 得到与之关联的Selector对象
+  	public abstract SelectableChannel channel(); // 得到与之关联的通道
+  	public final Object attachment(); // 得到与之关联的共享数据
+  	public abstract SelectionKey interestOps(int ops); // 设置或改变监听事件
+  	public final boolean isAcceptable(); // 是否可accept
+  	public final boolean isReadable(); // 是否可读
+  	public final boolean isWritable(); // 是否可写
+  }
+  ```
+
+## 11 Java ServerSocketChannel
+
+- ServerSocketChannel在服务器端监听新的客户端Socket连接
+
+- 相关方法 详见(图解 N-14)
+
+- 常用方法
+
+  ```java
+  public abstract class ServerSocketChannel
+      extends AbstractSelectableChannel
+      implements NetworkChannel
+  {
+  	 public static ServerSocketChannel open(); // 得到一个ServerSocketChannel通道
+  	 public final ServerSocketChannel bind(SocketAddress local); //设置服务器端口号
+    	 public final SelectableChannel configureBlocking(boolean block); // {在AbstractSelectableChannel中} 设置阻塞或非阻塞模式，取值false采用非阻塞模式
+       public abstract SocketChannel accept(); // 接收连接，返回代表这个连接的通道对象
+       public final SelectionKey register(Selector sel, int ops, Object att); // {在AbstractSelectableChannel中} 注册一个选择器并设置监听事件
+  
+  }
+  ```
+
+## 12 Java SocketChannel
+
+- SocketChannel 网络IO通道，具体负责进行读写操作。NIO把缓冲区的数据写入通道或把通道里的数据读到缓冲区
+
+- 相关方法 详见(图解 N-15)
+
+- 常用方法
+
+  ```java
+  public abstract class SocketChannel
+      extends AbstractSelectableChannel
+      implements ByteChannel, ScatteringByteChannel, GatheringByteChannel, NetworkChannel
+  {
+  	public static SocketChannel open(); // 得到一个SocketChannel通道
+  	public final SelectableChannel configureBlocking(boolean block); // {在AbstractSelectableChannel中} 设置阻塞或非阻塞模式，取值false采用非阻塞模式
+      public abstract boolean connect(SocketAddress remote); // 连接服务器
+  	public abstract boolean finishConnect(); // 如果connect方法连接失败，就会通过该方法完成连接
+      public abstract int write(ByteBuffer src); // 从通道中写入数据
+      public abstract int read(ByteBuffer dst); // 从通道中读取数据
+      public final SelectionKey register(Selector sel, int ops, Object att); // {在AbstractSelectableChannel中} 注册一个选择器并设置监听事件
+      public final void close(); // {在AbstractSelectableChannel中} 关闭通道
+  }
+  ```
+
+
+## 13 NIO 练习 群聊系统 详见 demo_day1 NIO grou  pChat
+
+## 14 NIO 零拷贝
+
+### NIO 零拷贝 介绍
+
+- 零拷贝是**网络编程的关键**，很多性能优化都离不开
+- 在Java程序中，**常用的零拷贝有mmap(内存映射)和sendFile**。
+- 零拷贝总结
+  - 指的是无CPU拷贝的操作(或者理解为只有Kernel buffer拥有一份数据)
+  - 是从操作系统的角度来谈的，因为内核缓冲区之间，没有重复数据
+  - 不仅做到了无重复数据复制，还提高其他方面的性能优势如更少的CPU缓存伪共享
+
+### NIO 传统IO与mmap、sendFile
+
+- 传统IO(图片见(图解N-16))
+  -  DMA：direct memory access 直接内存拷贝 不使用CPU
+  - 传统IO 需经过4次拷贝3次切换
+- mmap优化
+  - mmap 通过内存映射 将文件**映射到内核缓冲区**，同时，**用户空间可共享内核空间数据**，这样，在进行网络传输时就可以减少内核空间到用户控件的拷贝次数 *示意图 详见(图解 N-17)*
+- sendFile 优化
+  - Liunx2.1版本提供的sendFile函数，其基本**原理是数据不经过用户态，直接从内核缓冲区到SocketBuffer**，同时由于和用户态完全无关，就可减少一次上下切换 示*意图 详见(图解N-18)*
+  - Linux2.4版再次优化，**避免了内核缓冲区拷贝到Socketbuffer的操作，直接拷贝到协议栈**，从而减少数据拷贝的次数(当还是存在一次CPU拷贝 kernel buffer -> socket buffer 但由于拷贝的信息很少消耗低，可忽略不计) *示意图 详见(图解N-19)*
+
+### NIO 零拷贝 mmap与sendFile的区别
+
+1. mmap适合小数据量读写,sendFile 适合大文件传输
+2. mmap需要4次上下文切换(4次是包括进入时切入user context)，3次数据拷贝；sendFile需要3次上下文切换，最少2次数据拷贝
+3. sendFile 可以利用DMA方式，减少了CPU拷贝，mmap则不能(必须从内核拷贝到Socket缓冲区)
+
+### NIO 零拷贝 案例 详见 demo_day1 NIO zeroCopy
 
 
 
+## 15 Java AIO
 
+### Java AIO 基本介绍
 
+1. JDK7 引入，在进行IO编程时，常用到两种模式Reactor和Proactor，Java的NIO是Reactor模式，当有事件触发时服务器端会得到通知并处理
+2. AIO被称之为NIO2.0 及异步不堵塞的IO，AIO引入异步通道，采用Proactor模式，简化了程序编程，有效请求才启动线程处理，需先由操作系统完成才通知服务端程序启动线程去处理，一般适用于连接数较多且连接时间较长的应用
 
+### Java NIO，BIO与AIO的区别
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+|          | BIO      | NIO                  | AIO        |
+| -------- | -------- | -------------------- | ---------- |
+| IO模型   | 同步阻塞 | 同步非阻塞(多路复用) | 异步不阻塞 |
+| 编程难度 | 简单     | 复杂                 | 复杂       |
+| 可靠性   | 差       | 好                   | 好         |
+| 吞吐量   | 低       | 高                   | 高         |
 
 ## N 图解
 
@@ -283,3 +377,31 @@
 ### N-12 NIO 非阻塞 网络编程原理分析图(Selector，SelectionKey,ServerScoketChannel和SocketChannel关系梳理图)
 
 ![image-20210620152100769](Netty.assets/image-20210620152100769.png)
+
+### N-13 SelectionKey 相关方法
+
+![image-20210621093941203](Netty.assets/image-20210621093941203.png)
+
+### N-14 ServerSocketChannel 相关方法
+
+![image-20210621095832333](Netty.assets/image-20210621095832333.png)
+
+### N-15 SocketChannel 相关方法
+
+![image-20210621101139962](Netty.assets/image-20210621101139962.png)
+
+### N-16 传统IO
+
+![1](Netty.assets/1.png)
+
+### N-17 mmap 
+
+![image-20210622170500996](Netty.assets/2.png)
+
+### N-18 sendFile 优化一
+
+![image-20210622171227415](Netty.assets/3.png)
+
+### N-19 snedFile 优化二
+
+![image-20210622171820681](Netty.assets/4.png)
