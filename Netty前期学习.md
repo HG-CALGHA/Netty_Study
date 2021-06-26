@@ -42,7 +42,7 @@
 
 ### Java BIO 实例
 
-> - 代码详见demo_day1
+> - 代码详见Netty_Pro
 > - telnet无法使用
 >   - windows键 进入 设置 找到应用(卸载,默认应用,可选功能) 进入 找到相关设置 [程序和功能] 进入 找到 启动或关闭Windows功能 进入 勾上并启用telnet
 
@@ -66,7 +66,7 @@
 
 ### java NIO Buffer的使用
 
--  代码详见demo_day1
+-  代码详见Netty_Pro
 
 ### java NIO NIO与BIO的区别
 
@@ -144,17 +144,17 @@
 
 ### Java Channel 实例
 
-- 将数据写入文本文件 详见 demo_day1 NIOFileChannel_one 具体流程图详见(图解 N-9)
-- 读取文本文件数据  详见 demo_day1 NIOFileChannel_two 具体流程图详见(图解 N-10)
-- 单buffer的读取和写入 详见 demo_day1 NIOFileChannel_three 具体流程图详见(图解 N-11)
-- 文件拷贝 详见 demo_day1 NIOFileChannel_four
+- 将数据写入文本文件 详见 Netty_Pro NIOFileChannel_one 具体流程图详见(图解 N-9)
+- 读取文本文件数据  详见 Netty_Pro NIOFileChannel_two 具体流程图详见(图解 N-10)
+- 单buffer的读取和写入 详见 Netty_Pro NIOFileChannel_three 具体流程图详见(图解 N-11)
+- 文件拷贝 详见 Netty_Pro NIOFileChannel_four
 
 ## 8 Java Buffer与Channel的注意事项与细节
 
-- ByteBuffer **支持类型化的put和get，put放入什么类型的数据，get就应当使用相应的数据类型去取**，否则可能出现BufferUnderflowException异常(详见 demo_day1 NIOByteBufferPutGet)
-- 可将一个**普通的Buffer转成只读Buffer**(详见 demo_day1 OnlyReadBuffer)
-- NIO提供了**MapperByteBuffer**，可让**文件直接在内存中进行修改**，而如何**同步到文件由NIO来完成**(详见 demo_day1 MappedByteBufferTest)
-- **NIO还支持多个Buffer(即Buffer数组)完成读写操作**，即Scattering和Gathering(详见 demo_day1 ScatteringAndGathering)
+- ByteBuffer **支持类型化的put和get，put放入什么类型的数据，get就应当使用相应的数据类型去取**，否则可能出现BufferUnderflowException异常(详见 Netty_Pro NIOByteBufferPutGet)
+- 可将一个**普通的Buffer转成只读Buffer**(详见 Netty_Pro OnlyReadBuffer)
+- NIO提供了**MapperByteBuffer**，可让**文件直接在内存中进行修改**，而如何**同步到文件由NIO来完成**(详见 Netty_Pro MappedByteBufferTest)
+- **NIO还支持多个Buffer(即Buffer数组)完成读写操作**，即Scattering和Gathering(详见 Netty_Pro ScatteringAndGathering)
 
 ## 9 Java Select
 
@@ -278,7 +278,7 @@
   ```
 
 
-## 13 NIO 练习 群聊系统 详见 demo_day1 NIO grou  pChat
+## 13 NIO 练习 群聊系统 详见 Netty_Pro NIO grou  pChat
 
 ## 14 NIO 零拷贝
 
@@ -308,7 +308,7 @@
 2. mmap需要4次上下文切换(4次是包括进入时切入user context)，3次数据拷贝；sendFile需要3次上下文切换，最少2次数据拷贝
 3. sendFile 可以利用DMA方式，减少了CPU拷贝，mmap则不能(必须从内核拷贝到Socket缓冲区)
 
-### NIO 零拷贝 案例 详见 demo_day1 NIO zeroCopy
+### NIO 零拷贝 案例 详见 Netty_Pro NIO zeroCopy
 
 
 
