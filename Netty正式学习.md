@@ -23,7 +23,9 @@
 4. 安全 拥有完整的SSL/TLS和StartTLS支持
 5. 社区活跃，不断更新 可及时发现并修复bug
 
-### Netty 线程模型
+## 2 Netty 线程模型
+
+### Netty 线程模型简述
 
 1. 目前存在的线程模型有
    - 传统的阻塞I/O服务模型
@@ -144,8 +146,79 @@
         2. 处理I/O事件,即read/write事件，在对应NIOScoketChannel处理
         3. 处理任务队列的任务,即runAllTasks
      8. 每个Worker NIOEventLoop处理业务时，会使用pipeline(管道),pipeline中包含了channel，即通过pipeline可获取到对应通道,管道中维护了很多的处理器
+- 案例 详见(demo_day1 netty simple )
 
-   
+### Netty 模型 Task的使用场景
+
+1. 用户自定义普通任务  案例详见demo_day1 netty simple NettyHandler channelRead()
+2. 用户自定义定时任务 案例详见demo_day1 netty simple NettyHandler channelRead()
+3. 非当前Reactor线程调用Channel的各种方法(思路: 可根据用户标识，寻得对应的Channel引用)，通过writer方法向该用户发送推送消息
+
+### Netty模型 总结
+
+1. Netty抽象出两组数组，BossGroup 只处理连接请求，WorkerGroup 只处理读写请求(业务处理)
+2. NioEventLoop表示一个不断循环执行处理任务的线程，每个NioEventLoop都有一个Selector，用于监听绑定的socket通道
+3. NioEventLoop内部采用串行化设计，从消息读取->解码->处理->编码->发送，始终由IO线程NioEventLoop负责
+   - NioEventLoopGroup下包含多个NioEventLoop
+   - 每个NioEventLoop中包含一个Selector，一个taskQueue
+   - 每个NioEventLoop的Selector上可注册监听多个NioChannel
+   - 每个NioChannel只会绑定在唯一的NioEventLoop上
+   - 每个NioChannel都绑定一个自己的ChannelPipeline
+
+## 3 Netty 异步模型
+
+### Netty 异步模型简述
+
+1. 异步概念与同步相对，当一个异步过程调用发出后，调用者无法立刻获取结果，实际处理这个调用的组件 完成后，通过状态，通知和回调来知会调用者
+2. Netty的I/O操作是异步的，包括Bind，Write，Connect等操作来返回一个简单的ChannelFuture
+3. 调用者不能立刻获取结果，而是通过Future-Listener机制，用户可方便的主动获取或通知机制获取操作结果
+4. Netty异步模型是建立在future和callback(回调)之上的，Future的核心思想是 假设一个方法fun，计算耗时，无法等待其完成再进行下一步，因此可以在调用fun时返回Future，后续通过Future对象去监控fun的处理结果(Future-Listener机制)
+
+### Netty 异步模型 Future说明
+
+1. 表示异步执行的结果，可通过它提供的方法来检测执行是否完成
+2. ChannelFuture接口:public interface ChannelFuture extends Future<Void> 可添加监听器，当监听事件发生时，就会 触发监听器
+
+### Netty 异步模型 工作原理图(详见 图解N-9)
+
+1. 在使用 Netty 进行编程时，拦截操作和转换出入站数据只需要您提供 callback 或利用future 即可。这使得**链式操作**简单、高效, 并有利于编写可重用的、通用的代码；
+2. Netty 框架的目标就是让你的业务逻辑从网络基础应用编码中分离出来、解脱出来。
+
+### Netty 异步模型 Future-Listener机制
+
+1. 当Future对象刚刚好创建时，处于非完成状态，调用者可通过返回的ChannelFuture来获取操作的状态，注册 监听函数来执行完成后的操作
+
+2. 常见操作
+
+   - isDone方法 判断当前操作是否完成(仅操作是否结束)
+   - isSuccess 判断当前已完成的操作是否成功
+   - getCause 获取当前已完成的操作的失败原因
+   - isCancelled 注册监听器，当操作已完成(isDone 方法返回完成),将会知会指定的监听器；如果Future对象已完成则通知指定的监听器
+
+3. 举例说明
+
+   ```java
+   ChannelFuture sync = serverBootstrap.bind(6668).sync();
+               sync.addListener(new ChannelFutureListener() {
+                   @Override
+                   public void operationComplete(ChannelFuture future) throws Exception {
+                       if (sync.isSuccess()){
+                           System.out.println("监听成功");
+                       }else {
+                           System.out.println("失败");
+                       }
+                   }
+               });
+   ```
+
+   - 小结 相比传统的阻塞I/O，执行I/O操作后线程会被阻塞，直到操作完成，异步处理不会，线程可在I/O操作期间执行别的程序，在高并发下拥有更好的稳定性和更高的吞吐量
+
+### Netty 异步模型 HTTP服务实例
+
+- 实例要求
+  - 服务器在6668端口进行监听，浏览器发出的请求 http;//localhost:6668/
+  - 服务器可回复信息给客户端“hello 我是服务器”并对特定请求资源进行过滤
+- 详见 demo_day1 netty  http
 
 ## N 图解 
 
@@ -180,3 +253,8 @@
 ### N-8 Netty模型 详细版
 
 ![image-20210626152922786](Netty%E6%AD%A3%E5%BC%8F%E5%AD%A6%E4%B9%A0.assets/image-20210626152922786.png)
+
+### N-9 Netty 异步模型
+
+![image-20210627151428449](Netty%E6%AD%A3%E5%BC%8F%E5%AD%A6%E4%B9%A0.assets/image-20210627151428449.png)
+
